@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: moliyachi-bot
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: TIMEZONE
+        value: Asia/Tashkent
+      - key: BOT_TOKEN
+        sync: false        # Render so'raydi — @BotFather tokenini kiriting
+      - key: DATABASE_URL
+        sync: false        # Render so'raydi — Neon connection string
