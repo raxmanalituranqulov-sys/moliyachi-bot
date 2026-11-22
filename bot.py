@@ -32,7 +32,13 @@ from dotenv import load_dotenv
 import db
 
 load_dotenv()
-TOKEN = os.getenv("BOT_TOKEN")
+def _clean_token(raw: str) -> str:
+    """Bo'sh joy, qo'shtirnoq yoki 'BOT_TOKEN=' qo'shimchasi qolib ketgan bo'lsa tozalaydi."""
+    m = re.search(r"\d{5,}:[A-Za-z0-9_-]{30,}", raw or "")
+    return m.group(0) if m else (raw or "").strip()
+
+
+TOKEN = _clean_token(os.getenv("BOT_TOKEN", ""))
 try:
     TZ = ZoneInfo(os.getenv("TIMEZONE", "Asia/Tashkent"))
 except Exception:  # tzdata o'rnatilmagan bo'lsa — Toshkent vaqti (UTC+5)
@@ -551,11 +557,30 @@ async def run_webhook(bot: Bot, dp: Dispatcher, base_url: str):
 
 
 async def main():
-    if not TOKEN:
-        raise SystemExit("BOT_TOKEN topilmadi. .env faylini yarating (.env.example ga qarang).")
     logging.basicConfig(level=logging.INFO)
-    db.init_db()
+    if not TOKEN:
+        raise SystemExit(
+            "XATO: BOT_TOKEN bo'sh. Render -> Environment bo'limida BOT_TOKEN qiymatini kiriting. "
+            f"(Mavjud o'zgaruvchilar: {', '.join(k for k in os.environ if k.isupper() and '_' in k)[:300]})"
+        )
+    if os.getenv("DATABASE_URL") and not db.PG:
+        raise SystemExit(
+            "XATO: DATABASE_URL noto'g'ri. U 'postgresql://' bilan boshlanadigan Neon manzili bo'lishi kerak."
+        )
+    try:
+        db.init_db()
+    except Exception as e:
+        raise SystemExit(f"XATO: bazaga ulanib bo'lmadi ({type(e).__name__}: {str(e)[:200]}). "
+                         "DATABASE_URL ni Neon -> Connect dan qayta nusxalang.")
     logging.info("Baza: %s", "PostgreSQL" if db.PG else db.DB_PATH)
+    try:
+        me_check = Bot(TOKEN)
+        me = await me_check.get_me()
+        await me_check.session.close()
+        logging.info("Bot: @%s", me.username)
+    except Exception as e:
+        raise SystemExit(f"XATO: BOT_TOKEN noto'g'ri yoki bekor qilingan ({type(e).__name__}). "
+                         "@BotFather'dan to'g'ri tokenni nusxalang.")
     bot = Bot(TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
     dp = Dispatcher()
     dp.include_router(router)

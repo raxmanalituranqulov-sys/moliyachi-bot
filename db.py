@@ -3,10 +3,18 @@
 DATABASE_URL berilsa — PostgreSQL (masalan, tekin Neon), aks holda lokal SQLite fayl.
 """
 import os
+import re
 import sqlite3
 from contextlib import contextmanager
 
-DATABASE_URL = os.getenv("DATABASE_URL", "")
+
+def _find_db_url(raw: str) -> str:
+    """Neon'dan nusxa olinganda "psql 'postgresql://...'" yoki "DATABASE_URL=..." bo'lib qolishi mumkin."""
+    m = re.search(r"postgres(?:ql)?://[^\s'\"]+", raw or "")
+    return m.group(0) if m else ""
+
+
+DATABASE_URL = _find_db_url(os.getenv("DATABASE_URL", ""))
 DB_PATH = os.getenv("DB_PATH", "moliya.db")
 PG = DATABASE_URL.startswith(("postgres://", "postgresql://"))
 
